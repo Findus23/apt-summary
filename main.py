@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 import fileinput
-import pydoc
 import shutil
+from dataclasses import dataclass
 from enum import Enum
 from typing import Union
 
-from dataclasses import dataclass
 from packaging import version
-from packaging.version import Version, LegacyVersion
+from packaging.version import Version, InvalidVersion
 
 # https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 
-SomeVersion = Union[LegacyVersion, Version]
+SomeVersion = Union[Version]
 
 lines = list(fileinput.input())
 
@@ -38,28 +37,25 @@ def longest_value(table, column_no):
 
 
 def update_type(old_version_str: str, new_version_str: str, depth=0) -> UpdateType:
-    old_version = version.parse(old_version_str.replace(":", "!", 1))
-    new_version = version.parse(new_version_str.replace(":", "!", 1))
+    try:
+        old_version = version.parse(old_version_str.replace(":", "!", 1))
+        new_version = version.parse(new_version_str.replace(":", "!", 1))
 
-    if isinstance(old_version, LegacyVersion) or isinstance(new_version, LegacyVersion):
-        if not depth:
-            return update_type(old_version_str.split("+")[0], new_version_str.split("+")[0], depth=depth + 1)
-        if depth == 1:
-            return update_type(old_version_str.split("~")[0], new_version_str.split("~")[0], depth=depth + 1)
+        if new_version.epoch != old_version.epoch:
+            return UpdateType.EPOCH
+        if new_version.major != old_version.major:
+            return UpdateType.MAJOR
+        if new_version.minor != old_version.minor:
+            return UpdateType.MINOR
+        if new_version.micro != old_version.micro:
+            return UpdateType.PATCH
+        if new_version.post != old_version.post:
+            return UpdateType.DEBIAN
+        if depth:
+            return UpdateType.DEBIAN
         return UpdateType.OTHER
-    if new_version.epoch != old_version.epoch:
-        return UpdateType.EPOCH
-    if new_version.major != old_version.major:
-        return UpdateType.MAJOR
-    if new_version.minor != old_version.minor:
-        return UpdateType.MINOR
-    if new_version.micro != old_version.micro:
-        return UpdateType.PATCH
-    if new_version.post != old_version.post:
-        return UpdateType.DEBIAN
-    if depth:
-        return UpdateType.DEBIAN
-    return UpdateType.OTHER
+    except InvalidVersion:
+        return UpdateType.OTHER
 
 
 assert lines[0] == "VERSION 3\n"
