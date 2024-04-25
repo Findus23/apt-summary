@@ -8,6 +8,8 @@ from typing import Union
 from packaging import version
 from packaging.version import Version, InvalidVersion
 
+from diff import get_diff
+
 # https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 
 SomeVersion = Union[Version]
@@ -86,12 +88,13 @@ for update in UpdateType:
     text += update.value.center(width, "-")
 
     for update in sub_updates:
+        diff_text = get_diff(update.old_version, update.new_version)
         text += (
             f"{update.name:<{max(len(u.name) for u in sub_updates)}}"
             " "
             f"{update.old_version:<{max(len(u.old_version) for u in sub_updates)}}"
             " ➜ "
-            f"{update.new_version:<{max(len(u.old_version) for u in sub_updates)}}"
+            f"{diff_text:<{max(len(u.old_version) for u in sub_updates)}}"
             "\n"
         )
 
